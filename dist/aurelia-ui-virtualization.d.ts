@@ -1,4 +1,14 @@
 import {
+  customAttribute,
+  View,
+  BoundViewFactory,
+  ViewSlot,
+  ViewResources,
+  TargetInstruction,
+  bindable,
+  templateController
+} from 'aurelia-templating';
+import {
   updateOverrideContext,
   ArrayRepeatStrategy,
   createFullOverrideContext,
@@ -10,16 +20,6 @@ import {
   updateOneTimeBinding,
   viewsRequireLifecycle
 } from 'aurelia-templating-resources';
-import {
-  View,
-  BoundViewFactory,
-  ViewSlot,
-  ViewResources,
-  TargetInstruction,
-  customAttribute,
-  bindable,
-  templateController
-} from 'aurelia-templating';
 import {
   DOM
 } from 'aurelia-pal';
@@ -42,6 +42,13 @@ export declare interface TemplateStrategy {
 export declare class DomHelper {
   getElementDistanceToTopOfDocument(element: Element): number;
   hasOverflowScroll(element: Element): boolean;
+}
+
+//Placeholder attribute to prohibit use of this attribute name in other places
+export declare class VirtualRepeatNext {
+  constructor();
+  attached(): any;
+  bind(bindingContext?: any, overrideContext?: any): void;
 }
 export declare function calcOuterHeight(element: Element): number;
 export declare function insertBeforeNode(view: View, bottomBuffer: number): void;
@@ -70,6 +77,8 @@ export declare class ArrayVirtualRepeatStrategy extends ArrayRepeatStrategy {
     * @param items The new array instance.
     */
   instanceChanged(repeat: VirtualRepeat, items: Array<any>): void;
+  _standardProcessInstanceChanged(repeat: VirtualRepeat, items: Array<any>): void;
+  _inPlaceProcessItems(repeat: VirtualRepeat, items: Array<any>): void;
   
   /**
     * Handle the repeat's collection instance mutating.
@@ -78,6 +87,13 @@ export declare class ArrayVirtualRepeatStrategy extends ArrayRepeatStrategy {
     * @param splices Records of array changes.
     */
   instanceMutated(repeat: VirtualRepeat, array: Array<any>, splices: any): void;
+  _standardProcessInstanceMutated(repeat: VirtualRepeat, array: Array<any>, splices: any): void;
+  _runSplices(repeat: VirtualRepeat, array: Array<any>, splices: any): any;
+  _removeViewAt(repeat: VirtualRepeat, collectionIndex: number, returnToCache: boolean, j: number, removedLength: number): any;
+  _isIndexBeforeViewSlot(repeat: VirtualRepeat, viewSlot: ViewSlot, index: number): number;
+  _isIndexAfterViewSlot(repeat: VirtualRepeat, viewSlot: ViewSlot, index: number): number;
+  _getViewIndex(repeat: VirtualRepeat, viewSlot: ViewSlot, index: number): number;
+  _handleAddedSplices(repeat: VirtualRepeat, array: Array<any>, splices: any): void;
 }
 export declare class TemplateStrategyLocator {
   getStrategy(element: Element): TemplateStrategy;
@@ -107,6 +123,21 @@ export declare class VirtualRepeatStrategyLocator extends RepeatStrategyLocator 
   constructor();
 }
 export declare class VirtualRepeat extends AbstractRepeater {
+  _first: any;
+  _previousFirst: any;
+  _viewsLength: any;
+  _lastRebind: any;
+  _topBufferHeight: any;
+  _bottomBufferHeight: any;
+  _bufferSize: any;
+  _scrollingDown: any;
+  _scrollingUp: any;
+  _switchedDirection: any;
+  _isAttached: any;
+  _ticking: any;
+  _fixedHeightContainer: any;
+  _hasCalculatedSizes: any;
+  _isAtTop: any;
   items: any;
   local: any;
   constructor(element: Element, viewFactory: BoundViewFactory, instruction: TargetInstruction, viewSlot: ViewSlot, viewResources: ViewResources, observerLocator: ObserverLocator, strategyLocator: VirtualRepeatStrategyLocator, templateStrategyLocator: TemplateStrategyLocator, domHelper: DomHelper);
@@ -118,6 +149,21 @@ export declare class VirtualRepeat extends AbstractRepeater {
   unbind(): void;
   handleCollectionMutated(collection?: any, changes?: any): void;
   handleInnerCollectionMutated(collection?: any, changes?: any): void;
+  _onScroll(): void;
+  _handleScroll(): void;
+  _getMore(): void;
+  _checkScrolling(): void;
+  _adjustBufferHeights(): void;
+  _unsubscribeCollection(): void;
+  _moveViews(length: number): number;
+  _getIndexOfLastView(): number;
+  _getLastViewItem(): any;
+  _getIndexOfFirstView(): number;
+  _calcInitialHeights(itemsLength: number): any;
+  _calcScrollHeight(element: Element): number;
+  _observeInnerCollection(): boolean;
+  _getInnerCollection(): any;
+  _observeCollection(): void;
   
   // @override AbstractRepeater
   viewCount(): any;

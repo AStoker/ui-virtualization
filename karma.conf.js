@@ -51,30 +51,30 @@ module.exports = function(config) {
     // test results reporter to use
     // possible values: 'dots', 'progress'
     // available reporters: https://npmjs.org/browse/keyword/karma-reporter
-    reporters: ['progress'],//['coverage', 'progress'],
+    reporters: ['coverage', 'progress'],
 
-    // coverageReporter: {
-    //   instrumenters: {
-    //     isparta: isparta
-    //   },
-    //
-    //   instrumenter: {
-    //     [paths.source]: 'isparta'
-    //   },
-    //
-    //   dir: 'build/reports/coverage/',
-    //
-    //   reporters: [{
-    //     type: 'text-summary'
-    //   }, {
-    //     type: 'html',
-    //     subdir: 'html'
-    //   }, {
-    //     type: 'lcovonly',
-    //     subdir: 'lcov',
-    //     file: 'report-lcovonly.txt'
-    //   }]
-    // },
+    coverageReporter: {
+      instrumenters: {
+        isparta: isparta
+      },
+
+      instrumenter: {
+        [paths.source]: 'isparta'
+      },
+
+      dir: 'build/reports/coverage/',
+
+      reporters: [{
+        type: 'text-summary'
+      }, {
+        type: 'html',
+        subdir: 'html'
+      }, {
+        type: 'lcovonly',
+        subdir: 'lcov',
+        file: 'report-lcovonly.txt'
+      }]
+    },
 
     // web server port
     port: 9876,
