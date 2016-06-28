@@ -47,6 +47,7 @@ export class VirtualRepeat extends AbstractRepeater {
   _fixedHeightContainer = false;
   _hasCalculatedSizes = false;
   _isAtTop = true;
+  _calledGetMore = false;
 
   @bindable items
   @bindable local
@@ -261,26 +262,30 @@ export class VirtualRepeat extends AbstractRepeater {
 
   _getMore(): void{
       if(this.isLastIndex){
-            if(!this.calledGetMore){
+            if(!this._calledGetMore){
                 let getMoreFunc = this.view(0).firstChild.getAttribute('virtual-repeat-next');
+                if(!getMoreFunc){
+                    //break down the boogie
+                    return;
+                }
                 let getMore = this.scope.overrideContext.bindingContext[getMoreFunc];
 
                 this.observerLocator.taskQueue.queueMicroTask(() =>{
-                    this.calledGetMore = true;
+                    this._calledGetMore = true;
                     if(getMore instanceof Promise){
                         return getMore.then(() => {
                             //console.log('here');
-                            this.calledGetMore = false; //Reset for the next time
+                            this._calledGetMore = false; //Reset for the next time
                         })
                     } else if (typeof getMore === 'function'){
                         let result = getMore.bind(this.scope.overrideContext.bindingContext)();
                         if(result instanceof Promise){
                             return result.then(() => {
                                 //console.log('here');
-                                this.calledGetMore = false; //Reset for the next time
+                                this._calledGetMore = false; //Reset for the next time
                             })
                         } else {
-                            this.calledGetMore = false; //Reset for the next time
+                            this._calledGetMore = false; //Reset for the next time
                             return;
                         }
                     }
