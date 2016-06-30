@@ -9,6 +9,14 @@ export function calcOuterHeight(element: Element): number {
   return height;
 }
 
+export function calcOuterWidth(element: Element): number {
+    let width;
+    width = element.getBoundingClientRect().width;
+    width += getStyleValue(element, 'marginLeft');
+    width += getStyleValue(element, 'marginRight');
+    return width;
+  }
+
 export function insertBeforeNode(view: View, bottomBuffer: number): void {
   let parentElement = bottomBuffer.parentElement || bottomBuffer.parentNode;
   parentElement.insertBefore(view.lastChild, bottomBuffer);

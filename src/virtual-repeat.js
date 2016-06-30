@@ -22,6 +22,7 @@ import {DOM} from 'aurelia-pal';
 import {
   getStyleValue,
   calcOuterHeight,
+  calcOuterWidth,
   rebindAndMoveView
 } from './utilities';
 import {DomHelper} from './dom-helper';
@@ -33,6 +34,7 @@ import {TemplateStrategyLocator} from './template-strategy';
 @inject(DOM.Element, BoundViewFactory, TargetInstruction, ViewSlot, ViewResources, ObserverLocator, VirtualRepeatStrategyLocator, TemplateStrategyLocator, DomHelper)
 export class VirtualRepeat extends AbstractRepeater {
   _first = 0;
+  _firstColumn = 0;
   _previousFirst = 0;
   _viewsLength = 0;
   _lastRebind = 0;
@@ -87,24 +89,30 @@ export class VirtualRepeat extends AbstractRepeater {
     this.scrollContainer = this.templateStrategy.getScrollContainer(element);
     this.topBuffer = this.templateStrategy.createTopBufferElement(element);
     this.bottomBuffer = this.templateStrategy.createBottomBufferElement(element);
-    this.itemsChanged();
+
     this.scrollListener = () => this._onScroll();
 
     this.calcDistanceToTopInterval = setInterval(() => {
       let distanceToTop = this.distanceToTop;
+      let distanceToLeft = this.distanceToLeft;
       this.distanceToTop = this.domHelper.getElementDistanceToTopOfDocument(this.topBuffer);
-      if (distanceToTop !== this.distanceToTop) {
+      this.distanceToLeft = this.domHelper.getElementDistanceToLeftOfDocument(this.topBuffer);
+      if (distanceToTop !== this.distanceToTop || distanceToLeft !== this.distanceToLeft) {
         this._handleScroll();
       }
     }, 500);
 
     this.distanceToTop = this.domHelper.getElementDistanceToTopOfDocument(this.templateStrategy.getFirstElement(this.topBuffer));
+    this.distanceToLeft = this.domHelper.getElementDistanceToLeftOfDocument(this.templateStrategy.getFirstElement(this.topBuffer));
     if (this.domHelper.hasOverflowScroll(this.scrollContainer)) {
       this._fixedHeightContainer = true;
+      this._fixedWidthContainer = true;
       this.scrollContainer.addEventListener('scroll', this.scrollListener);
     } else {
       document.addEventListener('scroll', this.scrollListener);
     }
+
+    this.itemsChanged();
   }
 
   bind(bindingContext, overrideContext): void {
@@ -118,6 +126,7 @@ export class VirtualRepeat extends AbstractRepeater {
   detached(): void {
     this.scrollContainer.removeEventListener('scroll', this.scrollListener);
     this._first = 0;
+    this._firstColumn = 0;
     this._previousFirst = 0;
     this._viewsLength = 0;
     this._lastRebind = 0;
@@ -128,12 +137,15 @@ export class VirtualRepeat extends AbstractRepeater {
     this._switchedDirection = false;
     this._isAttached = false;
     this._ticking = false;
+    this._calledGetMore = false;
     this._hasCalculatedSizes = false;
     this.templateStrategy.removeBufferElements(this.element, this.topBuffer, this.bottomBuffer);
     this.isLastIndex = false;
     this.scrollContainer = null;
     this.scrollContainerHeight = null;
+    this.scrollContainerWidth = null;
     this.distanceToTop = null;
+    this.distanceToLeft = null;
     this.removeAllViews(true);
     if (this.scrollHandler) {
       this.scrollHandler.dispose();
@@ -210,8 +222,12 @@ export class VirtualRepeat extends AbstractRepeater {
       return;
     }
     let itemHeight = this.itemHeight;
+    let itemWidth = this.itemWidth;
     let scrollTop = this._fixedHeightContainer ? this.scrollContainer.scrollTop : pageYOffset - this.distanceToTop;
-    this._first = Math.floor(scrollTop / itemHeight);
+    let scrollLeft = this._fixedWidthContainer ? this.scrollContainer.scrollLeft : pageXOffset - this.distanceToLeft;
+    let rowsInColumn = Math.floor(this.scrollContainerHeight / itemHeight);
+    this._firstColumn = Math.floor(scrollLeft / itemWidth);
+    this._first = Math.floor(scrollTop / itemHeight) + (this.columnsInView > 0 ? rowsInColumn * this._firstColumn : 0);
     this._first = this._first < 0 ? 0 : this._first;
     if (this._first > this.items.length - this.elementsInView) {
       this._first = this.items.length - this.elementsInView;
@@ -385,11 +401,17 @@ export class VirtualRepeat extends AbstractRepeater {
     this._itemsLength = itemsLength;
     let firstViewElement = this.view(0).lastChild;
     this.itemHeight = calcOuterHeight(firstViewElement);
+    this.itemWidth = calcOuterWidth(firstViewElement);
     if (this.itemHeight <= 0) {
       throw new Error('Could not calculate item height');
     }
+    if (this.itemWidth <= 0) {
+      throw new Error('Could not calculate item width');
+    }
     this.scrollContainerHeight = this._fixedHeightContainer ? this._calcScrollHeight(this.scrollContainer) : document.documentElement.clientHeight;
-    this.elementsInView = Math.ceil(this.scrollContainerHeight / this.itemHeight) + 1;
+    this.scrollContainerWidth = this._fixedWidthContainer ? this._calcScrollWidth(this.scrollContainer) : document.documentElement.clientWidth;
+    this.columnsInView = Math.ceil(this.scrollContainerWidth / this.itemWidth);
+    this.elementsInView = this.columnsInView * (Math.ceil(this.scrollContainerHeight / this.itemHeight) + 1);
     this._viewsLength = (this.elementsInView * 2) + this._bufferSize;
     this._bottomBufferHeight = this.itemHeight * itemsLength - this.itemHeight * this._viewsLength;
     if (this._bottomBufferHeight < 0) {
@@ -401,6 +423,7 @@ export class VirtualRepeat extends AbstractRepeater {
     // TODO This will cause scrolling back to top when swapping collection instances that have different lengths - instead should keep the scroll position
     this.scrollContainer.scrollTop = 0;
     this._first = 0;
+    this._firstColumn = 0;
   }
 
   _calcScrollHeight(element: Element): number {
@@ -410,6 +433,14 @@ export class VirtualRepeat extends AbstractRepeater {
     height -= getStyleValue(element, 'borderBottomWidth');
     return height;
   }
+
+  _calcScrollWidth(element: Element): number {
+      let width;
+      width = element.getBoundingClientRect().width;
+      width -= getStyleValue(element, 'borderLeftWidth');
+      width -= getStyleValue(element, 'borderRightWidth');
+      return width;
+    };
 
   _observeInnerCollection(): boolean {
     let items = this._getInnerCollection();
