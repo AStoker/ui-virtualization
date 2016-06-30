@@ -1,3 +1,5 @@
+var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol ? "symbol" : typeof obj; };
+
 var _dec, _dec2, _class, _desc, _value, _class2, _descriptor, _descriptor2;
 
 function _initDefineProp(target, property, descriptor, context) {
@@ -54,7 +56,7 @@ import { ObserverLocator } from 'aurelia-binding';
 import { BoundViewFactory, ViewSlot, ViewResources, TargetInstruction, customAttribute, bindable, templateController, View } from 'aurelia-templating';
 import { AbstractRepeater, getItemsSourceExpression, isOneTime, unwrapExpression, updateOneTimeBinding, viewsRequireLifecycle } from 'aurelia-templating-resources';
 import { DOM } from 'aurelia-pal';
-import { getStyleValue, calcOuterHeight, rebindAndMoveView } from './utilities';
+import { getStyleValue, calcOuterHeight, calcOuterWidth, rebindAndMoveView } from './utilities';
 import { DomHelper } from './dom-helper';
 import { VirtualRepeatStrategyLocator } from './virtual-repeat-strategy-locator';
 import { TemplateStrategyLocator } from './template-strategy';
@@ -71,6 +73,7 @@ export var VirtualRepeat = (_dec = customAttribute('virtual-repeat'), _dec2 = in
     }));
 
     _this._first = 0;
+    _this._firstColumn = 0;
     _this._previousFirst = 0;
     _this._viewsLength = 0;
     _this._lastRebind = 0;
@@ -85,6 +88,7 @@ export var VirtualRepeat = (_dec = customAttribute('virtual-repeat'), _dec2 = in
     _this._fixedHeightContainer = false;
     _this._hasCalculatedSizes = false;
     _this._isAtTop = true;
+    _this._calledGetMore = false;
 
     _initDefineProp(_this, 'items', _descriptor, _this);
 
@@ -114,26 +118,32 @@ export var VirtualRepeat = (_dec = customAttribute('virtual-repeat'), _dec2 = in
     this.scrollContainer = this.templateStrategy.getScrollContainer(element);
     this.topBuffer = this.templateStrategy.createTopBufferElement(element);
     this.bottomBuffer = this.templateStrategy.createBottomBufferElement(element);
-    this.itemsChanged();
+
     this.scrollListener = function () {
       return _this2._onScroll();
     };
 
     this.calcDistanceToTopInterval = setInterval(function () {
       var distanceToTop = _this2.distanceToTop;
+      var distanceToLeft = _this2.distanceToLeft;
       _this2.distanceToTop = _this2.domHelper.getElementDistanceToTopOfDocument(_this2.topBuffer);
-      if (distanceToTop !== _this2.distanceToTop) {
+      _this2.distanceToLeft = _this2.domHelper.getElementDistanceToLeftOfDocument(_this2.topBuffer);
+      if (distanceToTop !== _this2.distanceToTop || distanceToLeft !== _this2.distanceToLeft) {
         _this2._handleScroll();
       }
     }, 500);
 
     this.distanceToTop = this.domHelper.getElementDistanceToTopOfDocument(this.templateStrategy.getFirstElement(this.topBuffer));
+    this.distanceToLeft = this.domHelper.getElementDistanceToLeftOfDocument(this.templateStrategy.getFirstElement(this.topBuffer));
     if (this.domHelper.hasOverflowScroll(this.scrollContainer)) {
       this._fixedHeightContainer = true;
+      this._fixedWidthContainer = true;
       this.scrollContainer.addEventListener('scroll', this.scrollListener);
     } else {
       document.addEventListener('scroll', this.scrollListener);
     }
+
+    this.itemsChanged();
   };
 
   VirtualRepeat.prototype.bind = function bind(bindingContext, overrideContext) {
@@ -147,6 +157,7 @@ export var VirtualRepeat = (_dec = customAttribute('virtual-repeat'), _dec2 = in
   VirtualRepeat.prototype.detached = function detached() {
     this.scrollContainer.removeEventListener('scroll', this.scrollListener);
     this._first = 0;
+    this._firstColumn = 0;
     this._previousFirst = 0;
     this._viewsLength = 0;
     this._lastRebind = 0;
@@ -157,12 +168,15 @@ export var VirtualRepeat = (_dec = customAttribute('virtual-repeat'), _dec2 = in
     this._switchedDirection = false;
     this._isAttached = false;
     this._ticking = false;
+    this._calledGetMore = false;
     this._hasCalculatedSizes = false;
     this.templateStrategy.removeBufferElements(this.element, this.topBuffer, this.bottomBuffer);
     this.isLastIndex = false;
     this.scrollContainer = null;
     this.scrollContainerHeight = null;
+    this.scrollContainerWidth = null;
     this.distanceToTop = null;
+    this.distanceToLeft = null;
     this.removeAllViews(true);
     if (this.scrollHandler) {
       this.scrollHandler.dispose();
@@ -241,8 +255,12 @@ export var VirtualRepeat = (_dec = customAttribute('virtual-repeat'), _dec2 = in
       return;
     }
     var itemHeight = this.itemHeight;
+    var itemWidth = this.itemWidth;
     var scrollTop = this._fixedHeightContainer ? this.scrollContainer.scrollTop : pageYOffset - this.distanceToTop;
-    this._first = Math.floor(scrollTop / itemHeight);
+    var scrollLeft = this._fixedWidthContainer ? this.scrollContainer.scrollLeft : pageXOffset - this.distanceToLeft;
+    var rowsInColumn = Math.floor(this.scrollContainerHeight / itemHeight);
+    this._firstColumn = Math.floor(scrollLeft / itemWidth);
+    this._first = Math.floor(scrollTop / itemHeight) + (this.columnsInView > 0 ? rowsInColumn * this._firstColumn : 0);
     this._first = this._first < 0 ? 0 : this._first;
     if (this._first > this.items.length - this.elementsInView) {
       this._first = this.items.length - this.elementsInView;
@@ -295,30 +313,37 @@ export var VirtualRepeat = (_dec = customAttribute('virtual-repeat'), _dec2 = in
     var _this5 = this;
 
     if (this.isLastIndex) {
-      if (!this.calledGetMore) {
-        (function () {
+      if (!this._calledGetMore) {
+        var _ret = function () {
           var getMoreFunc = _this5.view(0).firstChild.getAttribute('virtual-repeat-next');
+          if (!getMoreFunc) {
+            return {
+              v: void 0
+            };
+          }
           var getMore = _this5.scope.overrideContext.bindingContext[getMoreFunc];
 
           _this5.observerLocator.taskQueue.queueMicroTask(function () {
-            _this5.calledGetMore = true;
+            _this5._calledGetMore = true;
             if (getMore instanceof Promise) {
               return getMore.then(function () {
-                _this5.calledGetMore = false;
+                _this5._calledGetMore = false;
               });
             } else if (typeof getMore === 'function') {
                 var result = getMore.bind(_this5.scope.overrideContext.bindingContext)();
                 if (result instanceof Promise) {
                   return result.then(function () {
-                    _this5.calledGetMore = false;
+                    _this5._calledGetMore = false;
                   });
                 } else {
-                    _this5.calledGetMore = false;
+                    _this5._calledGetMore = false;
                     return;
                   }
               }
           });
-        })();
+        }();
+
+        if ((typeof _ret === 'undefined' ? 'undefined' : _typeof(_ret)) === "object") return _ret.v;
       }
     }
   };
@@ -422,11 +447,17 @@ export var VirtualRepeat = (_dec = customAttribute('virtual-repeat'), _dec2 = in
     this._itemsLength = itemsLength;
     var firstViewElement = this.view(0).lastChild;
     this.itemHeight = calcOuterHeight(firstViewElement);
+    this.itemWidth = calcOuterWidth(firstViewElement);
     if (this.itemHeight <= 0) {
       throw new Error('Could not calculate item height');
     }
+    if (this.itemWidth <= 0) {
+      throw new Error('Could not calculate item width');
+    }
     this.scrollContainerHeight = this._fixedHeightContainer ? this._calcScrollHeight(this.scrollContainer) : document.documentElement.clientHeight;
-    this.elementsInView = Math.ceil(this.scrollContainerHeight / this.itemHeight) + 1;
+    this.scrollContainerWidth = this._fixedWidthContainer ? this._calcScrollWidth(this.scrollContainer) : document.documentElement.clientWidth;
+    this.columnsInView = Math.ceil(this.scrollContainerWidth / this.itemWidth);
+    this.elementsInView = this.columnsInView * (Math.ceil(this.scrollContainerHeight / this.itemHeight) + 1);
     this._viewsLength = this.elementsInView * 2 + this._bufferSize;
     this._bottomBufferHeight = this.itemHeight * itemsLength - this.itemHeight * this._viewsLength;
     if (this._bottomBufferHeight < 0) {
@@ -438,6 +469,7 @@ export var VirtualRepeat = (_dec = customAttribute('virtual-repeat'), _dec2 = in
 
     this.scrollContainer.scrollTop = 0;
     this._first = 0;
+    this._firstColumn = 0;
   };
 
   VirtualRepeat.prototype._calcScrollHeight = function _calcScrollHeight(element) {
@@ -446,6 +478,14 @@ export var VirtualRepeat = (_dec = customAttribute('virtual-repeat'), _dec2 = in
     height -= getStyleValue(element, 'borderTopWidth');
     height -= getStyleValue(element, 'borderBottomWidth');
     return height;
+  };
+
+  VirtualRepeat.prototype._calcScrollWidth = function _calcScrollWidth(element) {
+    var width = void 0;
+    width = element.getBoundingClientRect().width;
+    width -= getStyleValue(element, 'borderLeftWidth');
+    width -= getStyleValue(element, 'borderRightWidth');
+    return width;
   };
 
   VirtualRepeat.prototype._observeInnerCollection = function _observeInnerCollection() {

@@ -41,6 +41,7 @@ export declare interface TemplateStrategy {
 }
 export declare class DomHelper {
   getElementDistanceToTopOfDocument(element: Element): number;
+  getElementDistanceToLeftOfDocument(element: Element): number;
   hasOverflowScroll(element: Element): boolean;
 }
 
@@ -51,6 +52,7 @@ export declare class VirtualRepeatNext {
   bind(bindingContext?: any, overrideContext?: any): void;
 }
 export declare function calcOuterHeight(element: Element): number;
+export declare function calcOuterWidth(element: Element): number;
 export declare function insertBeforeNode(view: View, bottomBuffer: number): void;
 
 /**
@@ -124,6 +126,7 @@ export declare class VirtualRepeatStrategyLocator extends RepeatStrategyLocator 
 }
 export declare class VirtualRepeat extends AbstractRepeater {
   _first: any;
+  _firstColumn: any;
   _previousFirst: any;
   _viewsLength: any;
   _lastRebind: any;
@@ -138,6 +141,7 @@ export declare class VirtualRepeat extends AbstractRepeater {
   _fixedHeightContainer: any;
   _hasCalculatedSizes: any;
   _isAtTop: any;
+  _calledGetMore: any;
   items: any;
   local: any;
   constructor(element: Element, viewFactory: BoundViewFactory, instruction: TargetInstruction, viewSlot: ViewSlot, viewResources: ViewResources, observerLocator: ObserverLocator, strategyLocator: VirtualRepeatStrategyLocator, templateStrategyLocator: TemplateStrategyLocator, domHelper: DomHelper);
@@ -161,6 +165,7 @@ export declare class VirtualRepeat extends AbstractRepeater {
   _getIndexOfFirstView(): number;
   _calcInitialHeights(itemsLength: number): any;
   _calcScrollHeight(element: Element): number;
+  _calcScrollWidth(element: Element): number;
   _observeInnerCollection(): boolean;
   _getInnerCollection(): any;
   _observeCollection(): void;

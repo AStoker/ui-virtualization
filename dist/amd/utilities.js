@@ -5,6 +5,7 @@ define(['exports', 'aurelia-templating-resources', 'aurelia-templating'], functi
     value: true
   });
   exports.calcOuterHeight = calcOuterHeight;
+  exports.calcOuterWidth = calcOuterWidth;
   exports.insertBeforeNode = insertBeforeNode;
   exports.updateVirtualOverrideContexts = updateVirtualOverrideContexts;
   exports.rebindAndMoveView = rebindAndMoveView;
@@ -17,6 +18,14 @@ define(['exports', 'aurelia-templating-resources', 'aurelia-templating'], functi
     height += getStyleValue(element, 'marginTop');
     height += getStyleValue(element, 'marginBottom');
     return height;
+  }
+
+  function calcOuterWidth(element) {
+    var width = void 0;
+    width = element.getBoundingClientRect().width;
+    width += getStyleValue(element, 'marginLeft');
+    width += getStyleValue(element, 'marginRight');
+    return width;
   }
 
   function insertBeforeNode(view, bottomBuffer) {

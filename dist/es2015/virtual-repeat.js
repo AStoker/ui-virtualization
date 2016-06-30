@@ -48,7 +48,7 @@ import { ObserverLocator } from 'aurelia-binding';
 import { BoundViewFactory, ViewSlot, ViewResources, TargetInstruction, customAttribute, bindable, templateController, View } from 'aurelia-templating';
 import { AbstractRepeater, getItemsSourceExpression, isOneTime, unwrapExpression, updateOneTimeBinding, viewsRequireLifecycle } from 'aurelia-templating-resources';
 import { DOM } from 'aurelia-pal';
-import { getStyleValue, calcOuterHeight, rebindAndMoveView } from './utilities';
+import { getStyleValue, calcOuterHeight, calcOuterWidth, rebindAndMoveView } from './utilities';
 import { DomHelper } from './dom-helper';
 import { VirtualRepeatStrategyLocator } from './virtual-repeat-strategy-locator';
 import { TemplateStrategyLocator } from './template-strategy';
@@ -61,6 +61,7 @@ export let VirtualRepeat = (_dec = customAttribute('virtual-repeat'), _dec2 = in
     });
 
     this._first = 0;
+    this._firstColumn = 0;
     this._previousFirst = 0;
     this._viewsLength = 0;
     this._lastRebind = 0;
@@ -75,6 +76,7 @@ export let VirtualRepeat = (_dec = customAttribute('virtual-repeat'), _dec2 = in
     this._fixedHeightContainer = false;
     this._hasCalculatedSizes = false;
     this._isAtTop = true;
+    this._calledGetMore = false;
 
     _initDefineProp(this, 'items', _descriptor, this);
 
@@ -101,24 +103,30 @@ export let VirtualRepeat = (_dec = customAttribute('virtual-repeat'), _dec2 = in
     this.scrollContainer = this.templateStrategy.getScrollContainer(element);
     this.topBuffer = this.templateStrategy.createTopBufferElement(element);
     this.bottomBuffer = this.templateStrategy.createBottomBufferElement(element);
-    this.itemsChanged();
+
     this.scrollListener = () => this._onScroll();
 
     this.calcDistanceToTopInterval = setInterval(() => {
       let distanceToTop = this.distanceToTop;
+      let distanceToLeft = this.distanceToLeft;
       this.distanceToTop = this.domHelper.getElementDistanceToTopOfDocument(this.topBuffer);
-      if (distanceToTop !== this.distanceToTop) {
+      this.distanceToLeft = this.domHelper.getElementDistanceToLeftOfDocument(this.topBuffer);
+      if (distanceToTop !== this.distanceToTop || distanceToLeft !== this.distanceToLeft) {
         this._handleScroll();
       }
     }, 500);
 
     this.distanceToTop = this.domHelper.getElementDistanceToTopOfDocument(this.templateStrategy.getFirstElement(this.topBuffer));
+    this.distanceToLeft = this.domHelper.getElementDistanceToLeftOfDocument(this.templateStrategy.getFirstElement(this.topBuffer));
     if (this.domHelper.hasOverflowScroll(this.scrollContainer)) {
       this._fixedHeightContainer = true;
+      this._fixedWidthContainer = true;
       this.scrollContainer.addEventListener('scroll', this.scrollListener);
     } else {
       document.addEventListener('scroll', this.scrollListener);
     }
+
+    this.itemsChanged();
   }
 
   bind(bindingContext, overrideContext) {
@@ -132,6 +140,7 @@ export let VirtualRepeat = (_dec = customAttribute('virtual-repeat'), _dec2 = in
   detached() {
     this.scrollContainer.removeEventListener('scroll', this.scrollListener);
     this._first = 0;
+    this._firstColumn = 0;
     this._previousFirst = 0;
     this._viewsLength = 0;
     this._lastRebind = 0;
@@ -142,12 +151,15 @@ export let VirtualRepeat = (_dec = customAttribute('virtual-repeat'), _dec2 = in
     this._switchedDirection = false;
     this._isAttached = false;
     this._ticking = false;
+    this._calledGetMore = false;
     this._hasCalculatedSizes = false;
     this.templateStrategy.removeBufferElements(this.element, this.topBuffer, this.bottomBuffer);
     this.isLastIndex = false;
     this.scrollContainer = null;
     this.scrollContainerHeight = null;
+    this.scrollContainerWidth = null;
     this.distanceToTop = null;
+    this.distanceToLeft = null;
     this.removeAllViews(true);
     if (this.scrollHandler) {
       this.scrollHandler.dispose();
@@ -218,8 +230,12 @@ export let VirtualRepeat = (_dec = customAttribute('virtual-repeat'), _dec2 = in
       return;
     }
     let itemHeight = this.itemHeight;
+    let itemWidth = this.itemWidth;
     let scrollTop = this._fixedHeightContainer ? this.scrollContainer.scrollTop : pageYOffset - this.distanceToTop;
-    this._first = Math.floor(scrollTop / itemHeight);
+    let scrollLeft = this._fixedWidthContainer ? this.scrollContainer.scrollLeft : pageXOffset - this.distanceToLeft;
+    let rowsInColumn = Math.floor(this.scrollContainerHeight / itemHeight);
+    this._firstColumn = Math.floor(scrollLeft / itemWidth);
+    this._first = Math.floor(scrollTop / itemHeight) + (this.columnsInView > 0 ? rowsInColumn * this._firstColumn : 0);
     this._first = this._first < 0 ? 0 : this._first;
     if (this._first > this.items.length - this.elementsInView) {
       this._first = this.items.length - this.elementsInView;
@@ -270,24 +286,27 @@ export let VirtualRepeat = (_dec = customAttribute('virtual-repeat'), _dec2 = in
 
   _getMore() {
     if (this.isLastIndex) {
-      if (!this.calledGetMore) {
+      if (!this._calledGetMore) {
         let getMoreFunc = this.view(0).firstChild.getAttribute('virtual-repeat-next');
+        if (!getMoreFunc) {
+          return;
+        }
         let getMore = this.scope.overrideContext.bindingContext[getMoreFunc];
 
         this.observerLocator.taskQueue.queueMicroTask(() => {
-          this.calledGetMore = true;
+          this._calledGetMore = true;
           if (getMore instanceof Promise) {
             return getMore.then(() => {
-              this.calledGetMore = false;
+              this._calledGetMore = false;
             });
           } else if (typeof getMore === 'function') {
               let result = getMore.bind(this.scope.overrideContext.bindingContext)();
               if (result instanceof Promise) {
                 return result.then(() => {
-                  this.calledGetMore = false;
+                  this._calledGetMore = false;
                 });
               } else {
-                  this.calledGetMore = false;
+                  this._calledGetMore = false;
                   return;
                 }
             }
@@ -387,11 +406,17 @@ export let VirtualRepeat = (_dec = customAttribute('virtual-repeat'), _dec2 = in
     this._itemsLength = itemsLength;
     let firstViewElement = this.view(0).lastChild;
     this.itemHeight = calcOuterHeight(firstViewElement);
+    this.itemWidth = calcOuterWidth(firstViewElement);
     if (this.itemHeight <= 0) {
       throw new Error('Could not calculate item height');
     }
+    if (this.itemWidth <= 0) {
+      throw new Error('Could not calculate item width');
+    }
     this.scrollContainerHeight = this._fixedHeightContainer ? this._calcScrollHeight(this.scrollContainer) : document.documentElement.clientHeight;
-    this.elementsInView = Math.ceil(this.scrollContainerHeight / this.itemHeight) + 1;
+    this.scrollContainerWidth = this._fixedWidthContainer ? this._calcScrollWidth(this.scrollContainer) : document.documentElement.clientWidth;
+    this.columnsInView = Math.ceil(this.scrollContainerWidth / this.itemWidth);
+    this.elementsInView = this.columnsInView * (Math.ceil(this.scrollContainerHeight / this.itemHeight) + 1);
     this._viewsLength = this.elementsInView * 2 + this._bufferSize;
     this._bottomBufferHeight = this.itemHeight * itemsLength - this.itemHeight * this._viewsLength;
     if (this._bottomBufferHeight < 0) {
@@ -403,6 +428,7 @@ export let VirtualRepeat = (_dec = customAttribute('virtual-repeat'), _dec2 = in
 
     this.scrollContainer.scrollTop = 0;
     this._first = 0;
+    this._firstColumn = 0;
   }
 
   _calcScrollHeight(element) {
@@ -411,6 +437,14 @@ export let VirtualRepeat = (_dec = customAttribute('virtual-repeat'), _dec2 = in
     height -= getStyleValue(element, 'borderTopWidth');
     height -= getStyleValue(element, 'borderBottomWidth');
     return height;
+  }
+
+  _calcScrollWidth(element) {
+    let width;
+    width = element.getBoundingClientRect().width;
+    width -= getStyleValue(element, 'borderLeftWidth');
+    width -= getStyleValue(element, 'borderRightWidth');
+    return width;
   }
 
   _observeInnerCollection() {

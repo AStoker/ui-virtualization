@@ -24,9 +24,18 @@ System.register([], function (_export, _context) {
           return Math.round(top);
         };
 
+        DomHelper.prototype.getElementDistanceToLeftOfDocument = function getElementDistanceToLeftOfDocument(element) {
+          var box = element.getBoundingClientRect();
+          var documentElement = document.documentElement;
+          var scrollLeft = window.pageXOffset;
+          var clientLeft = documentElement.clientLeft;
+          var left = box.left + scrollLeft - clientLeft;
+          return Math.round(left);
+        };
+
         DomHelper.prototype.hasOverflowScroll = function hasOverflowScroll(element) {
           var style = element.style;
-          return style.overflowY === 'scroll' || style.overflow === 'scroll' || style.overflowY === 'auto' || style.overflow === 'auto';
+          return style.overflowY === 'scroll' || style.overflowX === 'scroll' || style.overflow === 'scroll' || style.overflowY === 'auto' || style.overflowX === 'auto' || style.overflow === 'auto';
         };
 
         return DomHelper;

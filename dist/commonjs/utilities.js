@@ -4,6 +4,7 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.calcOuterHeight = calcOuterHeight;
+exports.calcOuterWidth = calcOuterWidth;
 exports.insertBeforeNode = insertBeforeNode;
 exports.updateVirtualOverrideContexts = updateVirtualOverrideContexts;
 exports.rebindAndMoveView = rebindAndMoveView;
@@ -21,6 +22,14 @@ function calcOuterHeight(element) {
   height += getStyleValue(element, 'marginTop');
   height += getStyleValue(element, 'marginBottom');
   return height;
+}
+
+function calcOuterWidth(element) {
+  var width = void 0;
+  width = element.getBoundingClientRect().width;
+  width += getStyleValue(element, 'marginLeft');
+  width += getStyleValue(element, 'marginRight');
+  return width;
 }
 
 function insertBeforeNode(view, bottomBuffer) {
