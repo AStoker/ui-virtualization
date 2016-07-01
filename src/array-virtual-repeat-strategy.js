@@ -1,5 +1,5 @@
 import {ArrayRepeatStrategy, createFullOverrideContext} from 'aurelia-templating-resources';
-import {updateVirtualOverrideContexts, rebindAndMoveView, getElementDistanceToBottomViewPort} from './utilities';
+import {updateVirtualOverrideContexts, rebindAndMoveView, getElementDistanceToBottomViewPort, getElementDistanceToRightViewPort} from './utilities';
 
 /**
 * A strategy for repeating a template over an array.
@@ -244,8 +244,22 @@ export class ArrayVirtualRepeatStrategy extends ArrayRepeatStrategy {
       let addIndex = splice.index;
       let end = splice.index + splice.addedCount;
       for (; addIndex < end; ++addIndex) {
-        let hasDistanceToBottomViewPort = getElementDistanceToBottomViewPort(repeat.templateStrategy.getLastElement(repeat.bottomBuffer)) > 0;
-        if (repeat.viewCount() === 0 || (!this._isIndexBeforeViewSlot(repeat, viewSlot, addIndex) && !this._isIndexAfterViewSlot(repeat, viewSlot, addIndex)) || hasDistanceToBottomViewPort)  {
+        let first = repeat.templateStrategy.getFirstElement(repeat.topBuffer);
+        let last = repeat.templateStrategy.getLastElement(repeat.bottomBuffer);
+        let hasDistanceToBottomViewPort = getElementDistanceToBottomViewPort(last) > 0;
+        let hasDistanceToRightViewPort = getElementDistanceToRightViewPort(last) > 0;
+        let hasDistanceToEdges = false;
+
+        //dealing with multi column layout logic where the first element and last element do not line up
+        //(takes care of situation where items in column do not span full width giving the impression of
+        //being able to fit into multiple columns). Look to the right for room
+        if(repeat.columnsInView > 1 && first.getBoundingClientRect().left !== last.getBoundingClientRect().left){
+          hasDistanceToEdges = hasDistanceToRightViewPort;
+        } else { //dealing with single column layout. Look down for room
+          hasDistanceToEdges = hasDistanceToBottomViewPort;
+        }
+
+        if (repeat.viewCount() === 0 || (!this._isIndexBeforeViewSlot(repeat, viewSlot, addIndex) && !this._isIndexAfterViewSlot(repeat, viewSlot, addIndex)) || hasDistanceToEdges)  {
           let overrideContext = createFullOverrideContext(repeat, array[addIndex], addIndex, arrayLength);
           repeat.insertView(addIndex, overrideContext.bindingContext, overrideContext);
           if (!repeat._hasCalculatedSizes) {

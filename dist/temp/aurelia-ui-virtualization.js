@@ -16,6 +16,7 @@ exports.updateVirtualOverrideContexts = updateVirtualOverrideContexts;
 exports.rebindAndMoveView = rebindAndMoveView;
 exports.getStyleValue = getStyleValue;
 exports.getElementDistanceToBottomViewPort = getElementDistanceToBottomViewPort;
+exports.getElementDistanceToRightViewPort = getElementDistanceToRightViewPort;
 exports.getElementDistanceToTopViewPort = getElementDistanceToTopViewPort;
 
 var _aureliaTemplating = require('aurelia-templating');
@@ -182,6 +183,10 @@ function getStyleValue(element, style) {
 
 function getElementDistanceToBottomViewPort(element) {
   return document.documentElement.clientHeight - element.getBoundingClientRect().bottom;
+}
+
+function getElementDistanceToRightViewPort(element) {
+  return document.documentElement.clientWidth - element.getBoundingClientRect().right;
 }
 
 function getElementDistanceToTopViewPort(element) {
@@ -430,8 +435,19 @@ var ArrayVirtualRepeatStrategy = exports.ArrayVirtualRepeatStrategy = function (
       var addIndex = splice.index;
       var end = splice.index + splice.addedCount;
       for (; addIndex < end; ++addIndex) {
-        var hasDistanceToBottomViewPort = getElementDistanceToBottomViewPort(repeat.templateStrategy.getLastElement(repeat.bottomBuffer)) > 0;
-        if (repeat.viewCount() === 0 || !this._isIndexBeforeViewSlot(repeat, viewSlot, addIndex) && !this._isIndexAfterViewSlot(repeat, viewSlot, addIndex) || hasDistanceToBottomViewPort) {
+        var first = repeat.templateStrategy.getFirstElement(repeat.topBuffer);
+        var last = repeat.templateStrategy.getLastElement(repeat.bottomBuffer);
+        var hasDistanceToBottomViewPort = getElementDistanceToBottomViewPort(last) > 0;
+        var hasDistanceToRightViewPort = getElementDistanceToRightViewPort(last) > 0;
+        var hasDistanceToEdges = false;
+
+        if (repeat.columnsInView > 1 && first.getBoundingClientRect().left !== last.getBoundingClientRect().left) {
+          hasDistanceToEdges = hasDistanceToRightViewPort;
+        } else {
+          hasDistanceToEdges = hasDistanceToBottomViewPort;
+        }
+
+        if (repeat.viewCount() === 0 || !this._isIndexBeforeViewSlot(repeat, viewSlot, addIndex) && !this._isIndexAfterViewSlot(repeat, viewSlot, addIndex) || hasDistanceToEdges) {
           var overrideContext = (0, _aureliaTemplatingResources.createFullOverrideContext)(repeat, array[addIndex], addIndex, arrayLength);
           repeat.insertView(addIndex, overrideContext.bindingContext, overrideContext);
           if (!repeat._hasCalculatedSizes) {
@@ -828,7 +844,9 @@ var VirtualRepeat = exports.VirtualRepeat = (_dec2 = (0, _aureliaTemplating.cust
       this._lastRebind = this._first;
       var movedViewsCount = this._moveViews(viewsToMove);
       var adjustHeight = movedViewsCount < viewsToMove ? this._bottomBufferHeight : itemHeight * movedViewsCount;
-      this._getMore();
+      if (viewsToMove > 0) {
+        this._getMore();
+      }
       this._switchedDirection = false;
       this._topBufferHeight = this._topBufferHeight + adjustHeight;
       this._bottomBufferHeight = this._bottomBufferHeight - adjustHeight;
@@ -873,6 +891,7 @@ var VirtualRepeat = exports.VirtualRepeat = (_dec2 = (0, _aureliaTemplating.cust
               v: void 0
             };
           }
+
           var getMore = _this9.scope.overrideContext.bindingContext[getMoreFunc];
 
           _this9.observerLocator.taskQueue.queueMicroTask(function () {
@@ -1008,8 +1027,10 @@ var VirtualRepeat = exports.VirtualRepeat = (_dec2 = (0, _aureliaTemplating.cust
     }
     this.scrollContainerHeight = this._fixedHeightContainer ? this._calcScrollHeight(this.scrollContainer) : document.documentElement.clientHeight;
     this.scrollContainerWidth = this._fixedWidthContainer ? this._calcScrollWidth(this.scrollContainer) : document.documentElement.clientWidth;
+
     this.columnsInView = Math.ceil(this.scrollContainerWidth / this.itemWidth);
-    this.elementsInView = this.columnsInView * (Math.ceil(this.scrollContainerHeight / this.itemHeight) + 1);
+    this.elementsInView = (this.columnsInView === 1 ? this.columnsInView : this.columnsInView + 1) * Math.ceil(this.scrollContainerHeight / this.itemHeight);
+
     this._viewsLength = this.elementsInView * 2 + this._bufferSize;
     this._bottomBufferHeight = this.itemHeight * itemsLength - this.itemHeight * this._viewsLength;
     if (this._bottomBufferHeight < 0) {

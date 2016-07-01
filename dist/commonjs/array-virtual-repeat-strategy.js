@@ -257,8 +257,19 @@ var ArrayVirtualRepeatStrategy = exports.ArrayVirtualRepeatStrategy = function (
       var addIndex = splice.index;
       var end = splice.index + splice.addedCount;
       for (; addIndex < end; ++addIndex) {
-        var hasDistanceToBottomViewPort = (0, _utilities.getElementDistanceToBottomViewPort)(repeat.templateStrategy.getLastElement(repeat.bottomBuffer)) > 0;
-        if (repeat.viewCount() === 0 || !this._isIndexBeforeViewSlot(repeat, viewSlot, addIndex) && !this._isIndexAfterViewSlot(repeat, viewSlot, addIndex) || hasDistanceToBottomViewPort) {
+        var first = repeat.templateStrategy.getFirstElement(repeat.topBuffer);
+        var last = repeat.templateStrategy.getLastElement(repeat.bottomBuffer);
+        var hasDistanceToBottomViewPort = (0, _utilities.getElementDistanceToBottomViewPort)(last) > 0;
+        var hasDistanceToRightViewPort = (0, _utilities.getElementDistanceToRightViewPort)(last) > 0;
+        var hasDistanceToEdges = false;
+
+        if (repeat.columnsInView > 1 && first.getBoundingClientRect().left !== last.getBoundingClientRect().left) {
+          hasDistanceToEdges = hasDistanceToRightViewPort;
+        } else {
+          hasDistanceToEdges = hasDistanceToBottomViewPort;
+        }
+
+        if (repeat.viewCount() === 0 || !this._isIndexBeforeViewSlot(repeat, viewSlot, addIndex) && !this._isIndexAfterViewSlot(repeat, viewSlot, addIndex) || hasDistanceToEdges) {
           var overrideContext = (0, _aureliaTemplatingResources.createFullOverrideContext)(repeat, array[addIndex], addIndex, arrayLength);
           repeat.insertView(addIndex, overrideContext.bindingContext, overrideContext);
           if (!repeat._hasCalculatedSizes) {

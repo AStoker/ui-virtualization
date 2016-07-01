@@ -5,7 +5,7 @@ function _possibleConstructorReturn(self, call) { if (!self) { throw new Referen
 function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
 
 import { ArrayRepeatStrategy, createFullOverrideContext } from 'aurelia-templating-resources';
-import { updateVirtualOverrideContexts, rebindAndMoveView, getElementDistanceToBottomViewPort } from './utilities';
+import { updateVirtualOverrideContexts, rebindAndMoveView, getElementDistanceToBottomViewPort, getElementDistanceToRightViewPort } from './utilities';
 
 export var ArrayVirtualRepeatStrategy = function (_ArrayRepeatStrategy) {
   _inherits(ArrayVirtualRepeatStrategy, _ArrayRepeatStrategy);
@@ -249,8 +249,19 @@ export var ArrayVirtualRepeatStrategy = function (_ArrayRepeatStrategy) {
       var addIndex = splice.index;
       var end = splice.index + splice.addedCount;
       for (; addIndex < end; ++addIndex) {
-        var hasDistanceToBottomViewPort = getElementDistanceToBottomViewPort(repeat.templateStrategy.getLastElement(repeat.bottomBuffer)) > 0;
-        if (repeat.viewCount() === 0 || !this._isIndexBeforeViewSlot(repeat, viewSlot, addIndex) && !this._isIndexAfterViewSlot(repeat, viewSlot, addIndex) || hasDistanceToBottomViewPort) {
+        var first = repeat.templateStrategy.getFirstElement(repeat.topBuffer);
+        var last = repeat.templateStrategy.getLastElement(repeat.bottomBuffer);
+        var hasDistanceToBottomViewPort = getElementDistanceToBottomViewPort(last) > 0;
+        var hasDistanceToRightViewPort = getElementDistanceToRightViewPort(last) > 0;
+        var hasDistanceToEdges = false;
+
+        if (repeat.columnsInView > 1 && first.getBoundingClientRect().left !== last.getBoundingClientRect().left) {
+          hasDistanceToEdges = hasDistanceToRightViewPort;
+        } else {
+          hasDistanceToEdges = hasDistanceToBottomViewPort;
+        }
+
+        if (repeat.viewCount() === 0 || !this._isIndexBeforeViewSlot(repeat, viewSlot, addIndex) && !this._isIndexAfterViewSlot(repeat, viewSlot, addIndex) || hasDistanceToEdges) {
           var overrideContext = createFullOverrideContext(repeat, array[addIndex], addIndex, arrayLength);
           repeat.insertView(addIndex, overrideContext.bindingContext, overrideContext);
           if (!repeat._hasCalculatedSizes) {

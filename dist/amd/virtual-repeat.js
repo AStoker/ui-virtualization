@@ -298,7 +298,9 @@ define(['exports', 'aurelia-dependency-injection', 'aurelia-binding', 'aurelia-t
         this._lastRebind = this._first;
         var movedViewsCount = this._moveViews(viewsToMove);
         var adjustHeight = movedViewsCount < viewsToMove ? this._bottomBufferHeight : itemHeight * movedViewsCount;
-        this._getMore();
+        if (viewsToMove > 0) {
+          this._getMore();
+        }
         this._switchedDirection = false;
         this._topBufferHeight = this._topBufferHeight + adjustHeight;
         this._bottomBufferHeight = this._bottomBufferHeight - adjustHeight;
@@ -343,6 +345,7 @@ define(['exports', 'aurelia-dependency-injection', 'aurelia-binding', 'aurelia-t
                 v: void 0
               };
             }
+
             var getMore = _this5.scope.overrideContext.bindingContext[getMoreFunc];
 
             _this5.observerLocator.taskQueue.queueMicroTask(function () {
@@ -478,8 +481,10 @@ define(['exports', 'aurelia-dependency-injection', 'aurelia-binding', 'aurelia-t
       }
       this.scrollContainerHeight = this._fixedHeightContainer ? this._calcScrollHeight(this.scrollContainer) : document.documentElement.clientHeight;
       this.scrollContainerWidth = this._fixedWidthContainer ? this._calcScrollWidth(this.scrollContainer) : document.documentElement.clientWidth;
+
       this.columnsInView = Math.ceil(this.scrollContainerWidth / this.itemWidth);
-      this.elementsInView = this.columnsInView * (Math.ceil(this.scrollContainerHeight / this.itemHeight) + 1);
+      this.elementsInView = (this.columnsInView === 1 ? this.columnsInView : this.columnsInView + 1) * Math.ceil(this.scrollContainerHeight / this.itemHeight);
+
       this._viewsLength = this.elementsInView * 2 + this._bufferSize;
       this._bottomBufferHeight = this.itemHeight * itemsLength - this.itemHeight * this._viewsLength;
       if (this._bottomBufferHeight < 0) {

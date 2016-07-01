@@ -63,6 +63,7 @@ export declare function updateVirtualOverrideContexts(repeat: VirtualRepeat, sta
 export declare function rebindAndMoveView(repeat: VirtualRepeat, view: View, index: number, moveToBottom: boolean): void;
 export declare function getStyleValue(element: Element, style: string): any;
 export declare function getElementDistanceToBottomViewPort(element: Element): number;
+export declare function getElementDistanceToRightViewPort(element: Element): number;
 export declare function getElementDistanceToTopViewPort(element: Element): number;
 
 /**

@@ -218,6 +218,7 @@ export class VirtualRepeat extends AbstractRepeater {
   }
 
   _handleScroll(): void {
+      //TODO: Refactor duplicate calls to this function
     if (!this._isAttached) {
       return;
     }
@@ -243,7 +244,9 @@ export class VirtualRepeat extends AbstractRepeater {
       this._lastRebind = this._first;
       let movedViewsCount = this._moveViews(viewsToMove);
       let adjustHeight = movedViewsCount < viewsToMove ? this._bottomBufferHeight : itemHeight * movedViewsCount;
-      this._getMore();
+      if(viewsToMove > 0){
+          this._getMore();
+      }
       this._switchedDirection = false;
       this._topBufferHeight = this._topBufferHeight + adjustHeight;
       this._bottomBufferHeight = this._bottomBufferHeight - adjustHeight;
@@ -279,11 +282,13 @@ export class VirtualRepeat extends AbstractRepeater {
   _getMore(): void{
       if(this.isLastIndex){
             if(!this._calledGetMore){
+                //TODO: This feels hacky, refactor?
                 let getMoreFunc = this.view(0).firstChild.getAttribute('virtual-repeat-next');
                 if(!getMoreFunc){
                     //break down the boogie
                     return;
                 }
+                //TODO: This definitely feels hacky, refactor?
                 let getMore = this.scope.overrideContext.bindingContext[getMoreFunc];
 
                 this.observerLocator.taskQueue.queueMicroTask(() =>{
@@ -410,8 +415,10 @@ export class VirtualRepeat extends AbstractRepeater {
     }
     this.scrollContainerHeight = this._fixedHeightContainer ? this._calcScrollHeight(this.scrollContainer) : document.documentElement.clientHeight;
     this.scrollContainerWidth = this._fixedWidthContainer ? this._calcScrollWidth(this.scrollContainer) : document.documentElement.clientWidth;
+    //TODO: In the event that elements don't take up full width, this will cause an incorrect amount of columns to be calculated, resulting in additional `elementsInView` to be calculated. Refactor
     this.columnsInView = Math.ceil(this.scrollContainerWidth / this.itemWidth);
-    this.elementsInView = this.columnsInView * (Math.ceil(this.scrollContainerHeight / this.itemHeight) + 1);
+    this.elementsInView =(this.columnsInView === 1 ? this.columnsInView : this.columnsInView + 1) * (Math.ceil(this.scrollContainerHeight / this.itemHeight));
+
     this._viewsLength = (this.elementsInView * 2) + this._bufferSize;
     this._bottomBufferHeight = this.itemHeight * itemsLength - this.itemHeight * this._viewsLength;
     if (this._bottomBufferHeight < 0) {

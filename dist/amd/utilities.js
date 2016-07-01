@@ -11,6 +11,7 @@ define(['exports', 'aurelia-templating-resources', 'aurelia-templating'], functi
   exports.rebindAndMoveView = rebindAndMoveView;
   exports.getStyleValue = getStyleValue;
   exports.getElementDistanceToBottomViewPort = getElementDistanceToBottomViewPort;
+  exports.getElementDistanceToRightViewPort = getElementDistanceToRightViewPort;
   exports.getElementDistanceToTopViewPort = getElementDistanceToTopViewPort;
   function calcOuterHeight(element) {
     var height = void 0;
@@ -73,6 +74,10 @@ define(['exports', 'aurelia-templating-resources', 'aurelia-templating'], functi
 
   function getElementDistanceToBottomViewPort(element) {
     return document.documentElement.clientHeight - element.getBoundingClientRect().bottom;
+  }
+
+  function getElementDistanceToRightViewPort(element) {
+    return document.documentElement.clientWidth - element.getBoundingClientRect().right;
   }
 
   function getElementDistanceToTopViewPort(element) {

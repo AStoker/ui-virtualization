@@ -1,5 +1,5 @@
 import { ArrayRepeatStrategy, createFullOverrideContext } from 'aurelia-templating-resources';
-import { updateVirtualOverrideContexts, rebindAndMoveView, getElementDistanceToBottomViewPort } from './utilities';
+import { updateVirtualOverrideContexts, rebindAndMoveView, getElementDistanceToBottomViewPort, getElementDistanceToRightViewPort } from './utilities';
 
 export let ArrayVirtualRepeatStrategy = class ArrayVirtualRepeatStrategy extends ArrayRepeatStrategy {
   createFirstItem(repeat) {
@@ -225,8 +225,19 @@ export let ArrayVirtualRepeatStrategy = class ArrayVirtualRepeatStrategy extends
       let addIndex = splice.index;
       let end = splice.index + splice.addedCount;
       for (; addIndex < end; ++addIndex) {
-        let hasDistanceToBottomViewPort = getElementDistanceToBottomViewPort(repeat.templateStrategy.getLastElement(repeat.bottomBuffer)) > 0;
-        if (repeat.viewCount() === 0 || !this._isIndexBeforeViewSlot(repeat, viewSlot, addIndex) && !this._isIndexAfterViewSlot(repeat, viewSlot, addIndex) || hasDistanceToBottomViewPort) {
+        let first = repeat.templateStrategy.getFirstElement(repeat.topBuffer);
+        let last = repeat.templateStrategy.getLastElement(repeat.bottomBuffer);
+        let hasDistanceToBottomViewPort = getElementDistanceToBottomViewPort(last) > 0;
+        let hasDistanceToRightViewPort = getElementDistanceToRightViewPort(last) > 0;
+        let hasDistanceToEdges = false;
+
+        if (repeat.columnsInView > 1 && first.getBoundingClientRect().left !== last.getBoundingClientRect().left) {
+          hasDistanceToEdges = hasDistanceToRightViewPort;
+        } else {
+          hasDistanceToEdges = hasDistanceToBottomViewPort;
+        }
+
+        if (repeat.viewCount() === 0 || !this._isIndexBeforeViewSlot(repeat, viewSlot, addIndex) && !this._isIndexAfterViewSlot(repeat, viewSlot, addIndex) || hasDistanceToEdges) {
           let overrideContext = createFullOverrideContext(repeat, array[addIndex], addIndex, arrayLength);
           repeat.insertView(addIndex, overrideContext.bindingContext, overrideContext);
           if (!repeat._hasCalculatedSizes) {

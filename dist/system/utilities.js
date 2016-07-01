@@ -88,6 +88,12 @@ System.register(['aurelia-templating-resources', 'aurelia-templating'], function
 
       _export('getElementDistanceToBottomViewPort', getElementDistanceToBottomViewPort);
 
+      function getElementDistanceToRightViewPort(element) {
+        return document.documentElement.clientWidth - element.getBoundingClientRect().right;
+      }
+
+      _export('getElementDistanceToRightViewPort', getElementDistanceToRightViewPort);
+
       function getElementDistanceToTopViewPort(element) {
         return element.getBoundingClientRect().top;
       }

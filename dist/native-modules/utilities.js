@@ -64,6 +64,10 @@ export function getElementDistanceToBottomViewPort(element) {
   return document.documentElement.clientHeight - element.getBoundingClientRect().bottom;
 }
 
+export function getElementDistanceToRightViewPort(element) {
+  return document.documentElement.clientWidth - element.getBoundingClientRect().right;
+}
+
 export function getElementDistanceToTopViewPort(element) {
   return element.getBoundingClientRect().top;
 }
